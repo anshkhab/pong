@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include <string>
+#include <cmath>
 
 using namespace std;
 
@@ -32,7 +33,7 @@ static const int PIXEL_MOVEMENT_PER_CLICK = 5;
 static const int DASHED_LINE_WIDTH = 10;
 static const int DASHED_LINE_HEIGHT = 15;
 static const int DASHED_LINE_GAP = 10;
-static const int DASHED_LINE_MIDDLE_X = SCREEN_WIDTH / 2;
+static const int MIDDLE_X = SCREEN_WIDTH / 2;
 static const int DASHED_LINE_START_Y = BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT;
 static const int DASHED_LINE_END_Y = SCREEN_HEIGHT - BORDER_OFFSET - TOP_BOTTOM_RECT_HEIGHT - DASHED_LINE_GAP - DASHED_LINE_HEIGHT;
 
@@ -43,6 +44,14 @@ static const int TENS_DIGIT_Y_POSITION = BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT 
 static const int ONES_DIGIT_X_POSITION = TENS_DIGIT_X_POSITION + 30;
 static const int ONES_DIGIT_Y_POSITION = TENS_DIGIT_Y_POSITION;
 
+// Ball
+static const int BALL_RADIUS = 6;
+static const int BALL_SPEED = 8;
+
+static const int BALL_START_POS_X1 = MIDDLE_X + 20;
+static const int BALL_START_POS_X2 = MIDDLE_X - 20;
+static const int BALL_START_POS_Y = DASHED_LINE_START_Y + 5;
+
 // Structs
 struct Player {
     int y_position {};
@@ -51,26 +60,20 @@ struct Player {
 };
 
 struct Ball {
-    int x_position {};
-    int y_position {};
+    Vector2 position {};
+    Vector2 speed {};
     int radius {};
     bool active {};
-};
-
-struct BoundaryRectangle {
-    int x_position {};
-    int y_position {};
-    int width {};
-    int height {};
+    bool start_pos_toggle {};
 };
 
 // Local game variables
 static bool game_over = false;
 static Player player = { 0 };
 static Ball ball = { 0 };
-static BoundaryRectangle top = { 0 };
-static BoundaryRectangle bottom = { 0 };
-static BoundaryRectangle wall = { 0 };
+static Rectangle top = { 0 };
+static Rectangle bottom = { 0 };
+static Rectangle wall = { 0 };
 
 int main() {
     // Initialization
@@ -91,30 +94,38 @@ int main() {
 
 void InitGame(void) {
     // rectangles on the top and bottom
-    top.x_position = BORDER_OFFSET;
-    top.y_position = BORDER_OFFSET;
+    top.x = BORDER_OFFSET;
+    top.y = BORDER_OFFSET;
     top.width = SCREEN_WIDTH - (2 * BORDER_OFFSET);
     top.height = TOP_BOTTOM_RECT_HEIGHT;
 
-    bottom.x_position = BORDER_OFFSET;
-    bottom.y_position = SCREEN_HEIGHT - BORDER_OFFSET - TOP_BOTTOM_RECT_HEIGHT;
+    bottom.x = BORDER_OFFSET;
+    bottom.y = SCREEN_HEIGHT - BORDER_OFFSET - TOP_BOTTOM_RECT_HEIGHT;
     bottom.width = SCREEN_WIDTH - (2 * BORDER_OFFSET);
     bottom.height = TOP_BOTTOM_RECT_HEIGHT;
 
     // wall on the left side
-    wall.x_position = BORDER_OFFSET + WALL_OFFSET;
-    wall.y_position = BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT;
+    wall.x = BORDER_OFFSET + WALL_OFFSET;
+    wall.y = BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT;
     wall.width = TOP_BOTTOM_RECT_HEIGHT;
     wall.height = SCREEN_HEIGHT - (2 * (BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT)); // off by 5 pixels
 
     // player
-    player.racket_size = MEDIUM_RACKET_HEIGHT;
+    player.racket_size = LARGE_RACKET_HEIGHT;
     player.y_position = (SCREEN_HEIGHT / 2) - (player.racket_size / 2); // initialize racket position to the middle
     player.score = 0;
+
+    // ball
+    ball.radius = BALL_RADIUS;
+    ball.active = false;
+    ball.start_pos_toggle = GetRandomValue(0, 1);   // random seed
 }
 
 void UpdateGame(void) {
     // Update position of the racket based on user input (up & down arrows)
+
+    // TODO: replace this with collision of two rectangles...
+
     int bottom_racket_boundary = SCREEN_HEIGHT - BORDER_OFFSET - TOP_BOTTOM_RECT_HEIGHT - player.racket_size;
     int top_racket_boundary = BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT;
 
@@ -136,9 +147,58 @@ void UpdateGame(void) {
         player.y_position = top_racket_boundary;
     }
 
-    // TODO: update the position of the ball
-    // TODO: check for collision
-    // TODO: update the score based on collision
+    // ball launching logic
+    if (!ball.active) {
+        if (IsKeyPressed(KEY_SPACE)) 
+        {
+            ball.active = true;
+            
+            // set initial ball position & initial speed
+            if (ball.start_pos_toggle) {
+                ball.position.x = BALL_START_POS_X1;
+                ball.speed.x = 1;
+                ball.speed.y = 1;
+            } else {
+                ball.position.x = BALL_START_POS_X2;
+                ball.speed.x = -1;
+                ball.speed.y = 1;
+            }
+            ball.start_pos_toggle ^= 1; // toggle
+            ball.position.y = BALL_START_POS_Y;
+
+            // set initial ball speed to move at a 45 degree angle
+            float rescale_factor = BALL_SPEED / (sqrt(pow(ball.speed.x, 2) + pow(ball.speed.y, 2))); // scale so total speed is BALL_SPEED
+            ball.speed.x *= rescale_factor;
+            ball.speed.y *= rescale_factor;
+        }
+    }
+
+    // ball movement logic
+    if (ball.active) {
+        ball.position.x += ball.speed.x;
+        ball.position.y += ball.speed.y;
+    }
+
+    // collision: ball vs. top or botttom
+    if (CheckCollisionCircleRec(ball.position, ball.radius, top) || CheckCollisionCircleRec(ball.position, ball.radius, bottom)) {
+        ball.speed.y *= -1;
+    }
+
+    // collision: ball vs. wall
+    if (CheckCollisionCircleRec(ball.position, ball.radius, wall)) {
+        ball.speed.x *= -1;
+    }
+
+    // collision: ball hits the racket
+    Rectangle player_racket = {RACKET_X_POSITION, static_cast<float>(player.y_position), RACKET_WIDTH, static_cast<float>(player.racket_size)};
+    if (CheckCollisionCircleRec(ball.position, ball.radius, player_racket)) {
+        ball.speed.x *= -1; // TODO: make this more complicated based on where on the racket it hits...
+        player.score++; // update score
+
+        // TODO: what happens when score exceeds 99...?
+    }
+
+    // miss: ball goes past paddle
 }
 
 void DrawGame(void) {
@@ -148,21 +208,24 @@ void DrawGame(void) {
     ClearBackground(BLACK);
 
     // draw top and bottom rectangles in white
-    DrawRectangle(top.x_position, top.y_position, top.width, top.height, WHITE);
-    DrawRectangle(bottom.x_position, bottom.y_position, bottom.width, bottom.height, WHITE);
+    DrawRectangle(top.x, top.y, top.width, top.height, WHITE);
+    DrawRectangle(bottom.x, bottom.y, bottom.width, bottom.height, WHITE);
 
     // draw wall
-    DrawRectangle(wall.x_position, wall.y_position, wall.width, wall.height, WHITE);
+    DrawRectangle(wall.x, wall.y, wall.width, wall.height, WHITE);
 
     // draw dashed line down the middle
     for (int cur_y = DASHED_LINE_START_Y; cur_y <= DASHED_LINE_END_Y; cur_y += (DASHED_LINE_GAP + DASHED_LINE_HEIGHT)) {
-        DrawRectangle(DASHED_LINE_MIDDLE_X, DASHED_LINE_GAP + cur_y, DASHED_LINE_WIDTH, DASHED_LINE_HEIGHT, WHITE);
+        DrawRectangle(MIDDLE_X, DASHED_LINE_GAP + cur_y, DASHED_LINE_WIDTH, DASHED_LINE_HEIGHT, WHITE);
     }
 
     // draw racket position
     DrawRectangle(RACKET_X_POSITION, player.y_position, RACKET_WIDTH, player.racket_size, WHITE);
 
-    // TODO: draw the new ball position
+    // draw the ball position
+    if (ball.active) {
+        DrawCircle(ball.position.x, ball.position.y, ball.radius, WHITE);
+    }
 
     // draw the score
     string ones_digit = to_string(player.score % 10);
@@ -182,8 +245,8 @@ void UpdateDrawFrame(void) {
     DrawGame();
 }
 
-// add to GitHub...
 // add auto-formatting here...
+// we go to like 17 points if the ball hits the edge of the paddle
 // add the GameOver logic and the ability to play the game again...
 // add the ability to change the size of the paddle...
 // add a sound...
