@@ -13,17 +13,17 @@ static void UpdateDrawFrame(void);  // Update game & draw
 // Global variables
 
 // Screen
-static const int SCREEN_WIDTH = 800;
-static const int SCREEN_HEIGHT = 500;
+static const int SCREEN_WIDTH = 700;
+static const int SCREEN_HEIGHT = 400;
 static const int FPS = 60;
 static const int BORDER_OFFSET = 15; // 
 static const int TOP_BOTTOM_RECT_HEIGHT = 10;
 static const int WALL_OFFSET = 10;
 
 // Racket
-static const int SMALL_RACKET_HEIGHT = 20;
-static const int MEDIUM_RACKET_HEIGHT = 40;
-static const int LARGE_RACKET_HEIGHT = 60;
+static const int SMALL_RACKET_HEIGHT = 36;
+static const int MEDIUM_RACKET_HEIGHT = 72;
+static const int LARGE_RACKET_HEIGHT = 108;
 
 static const int RACKET_WIDTH = 10;
 static const int RACKET_X_POSITION = SCREEN_WIDTH - BORDER_OFFSET - RACKET_WIDTH; 
@@ -45,8 +45,8 @@ static const int ONES_DIGIT_X_POSITION = TENS_DIGIT_X_POSITION + 30;
 static const int ONES_DIGIT_Y_POSITION = TENS_DIGIT_Y_POSITION;
 
 // Ball
-static const int BALL_RADIUS = 6;
-static const int BALL_SPEED = 8;
+static const int BALL_RADIUS = 7;
+static const int BALL_SPEED = 10;
 
 static const int BALL_START_POS_X1 = MIDDLE_X + 20;
 static const int BALL_START_POS_X2 = MIDDLE_X - 20;
@@ -64,7 +64,6 @@ struct Ball {
     Vector2 speed {};
     int radius {};
     bool active {};
-    bool start_pos_toggle {};
 };
 
 // Local game variables
@@ -92,8 +91,9 @@ int main() {
     return 0;
 }
 
+// Start & reset the game
 void InitGame(void) {
-    // rectangles on the top and bottom
+    // Boundary rectangles on the top and bottom
     top.x = BORDER_OFFSET;
     top.y = BORDER_OFFSET;
     top.width = SCREEN_WIDTH - (2 * BORDER_OFFSET);
@@ -104,101 +104,115 @@ void InitGame(void) {
     bottom.width = SCREEN_WIDTH - (2 * BORDER_OFFSET);
     bottom.height = TOP_BOTTOM_RECT_HEIGHT;
 
-    // wall on the left side
+    // Wall on the left side
     wall.x = BORDER_OFFSET + WALL_OFFSET;
     wall.y = BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT;
     wall.width = TOP_BOTTOM_RECT_HEIGHT;
     wall.height = SCREEN_HEIGHT - (2 * (BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT)); // off by 5 pixels
 
-    // player
+    // Initialize player
     player.racket_size = LARGE_RACKET_HEIGHT;
-    player.y_position = (SCREEN_HEIGHT / 2) - (player.racket_size / 2); // initialize racket position to the middle
+    player.y_position = (SCREEN_HEIGHT / 2) - (player.racket_size / 2); // Initialize the racket to be at the center of the screen so any adjusted racket size works
     player.score = 0;
 
-    // ball
+    // Set the ball's starting position randomly
     ball.radius = BALL_RADIUS;
     ball.active = false;
-    ball.start_pos_toggle = GetRandomValue(0, 1);   // random seed
+    if (GetRandomValue(0, 1)) {
+        ball.position.x = BALL_START_POS_X1;
+    } else {
+        ball.position.x = BALL_START_POS_X2;
+    }
+    ball.position.y = BALL_START_POS_Y;
 }
 
 void UpdateGame(void) {
-    // Update position of the racket based on user input (up & down arrows)
 
-    // TODO: replace this with collision of two rectangles...
+    if (!game_over) {
+        // Update position of the racket based on user input (up & down arrows)
+        int bottom_racket_boundary = SCREEN_HEIGHT - BORDER_OFFSET - TOP_BOTTOM_RECT_HEIGHT - player.racket_size;
+        int top_racket_boundary = BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT;
 
-    int bottom_racket_boundary = SCREEN_HEIGHT - BORDER_OFFSET - TOP_BOTTOM_RECT_HEIGHT - player.racket_size;
-    int top_racket_boundary = BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT;
+        if (IsKeyDown(KEY_DOWN)) {
+            player.y_position += PIXEL_MOVEMENT_PER_CLICK;
+        }
 
-    if (IsKeyDown(KEY_DOWN)) {
-        player.y_position += PIXEL_MOVEMENT_PER_CLICK;
-    }
+        if (player.y_position >= bottom_racket_boundary) {
+            // Paddle can't go below the lower wall
+            player.y_position = bottom_racket_boundary;
+        }
 
-    if (player.y_position >= bottom_racket_boundary) {
-        // Paddle can't go below the lower wall
-        player.y_position = bottom_racket_boundary;
-    }
+        if (IsKeyDown(KEY_UP)) {
+            player.y_position -= PIXEL_MOVEMENT_PER_CLICK;
+        }
 
-    if (IsKeyDown(KEY_UP)) {
-        player.y_position -= PIXEL_MOVEMENT_PER_CLICK;
-    }
+        if (player.y_position <= top_racket_boundary) {
+            // Paddle can't go above the upper wall
+            player.y_position = top_racket_boundary;
+        }
 
-    if (player.y_position <= top_racket_boundary) {
-        // Paddle can't go above the upper wall
-        player.y_position = top_racket_boundary;
-    }
-
-    // ball launching logic
-    if (!ball.active) {
-        if (IsKeyPressed(KEY_SPACE)) 
-        {
-            ball.active = true;
-            
-            // set initial ball position & initial speed
-            if (ball.start_pos_toggle) {
-                ball.position.x = BALL_START_POS_X1;
-                ball.speed.x = 1;
-                ball.speed.y = 1;
-            } else {
-                ball.position.x = BALL_START_POS_X2;
-                ball.speed.x = -1;
-                ball.speed.y = 1;
+        // ball launching logic
+        if (!ball.active) {
+            if (IsKeyPressed(KEY_SPACE)) 
+            {
+                ball.active = true;
+                
+                // set initial ball position & initial speed
+                if (GetRandomValue(0, 1)) {
+                    ball.speed.x = 1;
+                    ball.speed.y = 1;
+                } else {
+                    ball.speed.x = -1;
+                    ball.speed.y = 1;
+                }
+                
+                // set initial ball speed to move at a 45 degree angle
+                float rescale_factor = BALL_SPEED / (sqrt(pow(ball.speed.x, 2) + pow(ball.speed.y, 2))); // scale so total speed is BALL_SPEED
+                ball.speed.x *= rescale_factor;
+                ball.speed.y *= rescale_factor;
             }
-            ball.start_pos_toggle ^= 1; // toggle
-            ball.position.y = BALL_START_POS_Y;
+        }
 
-            // set initial ball speed to move at a 45 degree angle
-            float rescale_factor = BALL_SPEED / (sqrt(pow(ball.speed.x, 2) + pow(ball.speed.y, 2))); // scale so total speed is BALL_SPEED
-            ball.speed.x *= rescale_factor;
-            ball.speed.y *= rescale_factor;
+        // ball movement logic
+        if (ball.active) {
+            ball.position.x += ball.speed.x;
+            ball.position.y += ball.speed.y;
+        }
+
+        // collision: ball vs. top or botttom
+        if (CheckCollisionCircleRec(ball.position, ball.radius, top) || CheckCollisionCircleRec(ball.position, ball.radius, bottom)) {
+            ball.speed.y *= -1;
+            // TODO: add bounce noise
+        }
+
+        // collision: ball vs. wall
+        if (CheckCollisionCircleRec(ball.position, ball.radius, wall)) {
+            ball.speed.x *= -1;
+            // TODO: add bounce noise
+        }
+
+        // collision: ball hits the racket
+        Rectangle player_racket = {RACKET_X_POSITION, static_cast<float>(player.y_position), RACKET_WIDTH, static_cast<float>(player.racket_size)};
+        if (CheckCollisionCircleRec(ball.position, ball.radius, player_racket)) {
+            ball.speed.x *= -1; // TODO: make this more complicated based on where on the racket it hits...
+            player.score++; // update score
+
+            if (player.score == 99) {
+                game_over = true;
+            }
+        }
+
+        // miss: ball goes past paddle
+        if ((ball.position.x - ball.radius) > SCREEN_WIDTH || (ball.position.y + ball.radius) < 0 || (ball.position.y - ball.radius) > SCREEN_HEIGHT) {
+            game_over = true;
+        }
+
+    } else {
+        if (IsKeyPressed(KEY_ENTER)) {
+            InitGame();
+            game_over = false;
         }
     }
-
-    // ball movement logic
-    if (ball.active) {
-        ball.position.x += ball.speed.x;
-        ball.position.y += ball.speed.y;
-    }
-
-    // collision: ball vs. top or botttom
-    if (CheckCollisionCircleRec(ball.position, ball.radius, top) || CheckCollisionCircleRec(ball.position, ball.radius, bottom)) {
-        ball.speed.y *= -1;
-    }
-
-    // collision: ball vs. wall
-    if (CheckCollisionCircleRec(ball.position, ball.radius, wall)) {
-        ball.speed.x *= -1;
-    }
-
-    // collision: ball hits the racket
-    Rectangle player_racket = {RACKET_X_POSITION, static_cast<float>(player.y_position), RACKET_WIDTH, static_cast<float>(player.racket_size)};
-    if (CheckCollisionCircleRec(ball.position, ball.radius, player_racket)) {
-        ball.speed.x *= -1; // TODO: make this more complicated based on where on the racket it hits...
-        player.score++; // update score
-
-        // TODO: what happens when score exceeds 99...?
-    }
-
-    // miss: ball goes past paddle
 }
 
 void DrawGame(void) {
@@ -237,6 +251,10 @@ void DrawGame(void) {
         DrawText(tens_digit.c_str(), TENS_DIGIT_X_POSITION, TENS_DIGIT_Y_POSITION, FONT_SIZE, WHITE);
     }
 
+    if (game_over) {
+        DrawText("PRESS [ENTER] TO PLAY AGAIN", GetScreenWidth() / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2, GetScreenHeight() / 2 - 30, 20, GRAY);
+    }
+
     EndDrawing();
 }
 
@@ -245,8 +263,9 @@ void UpdateDrawFrame(void) {
     DrawGame();
 }
 
-// add auto-formatting here...
+// better ball bounce logic
 // we go to like 17 points if the ball hits the edge of the paddle
-// add the GameOver logic and the ability to play the game again...
 // add the ability to change the size of the paddle...
-// add a sound...
+// add hit noise
+
+// add auto-formatting here...
