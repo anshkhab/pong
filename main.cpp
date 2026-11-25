@@ -13,8 +13,8 @@ static void DrawGame(void);
 // Global variables
 
 // Screen
-static const int SCREEN_WIDTH = 700;
-static const int SCREEN_HEIGHT = 400;
+static const int SCREEN_WIDTH = 600;
+static const int SCREEN_HEIGHT = 450;
 static const int FPS = 60;
 static const int BORDER_OFFSET = 15; // 
 static const int TOP_BOTTOM_RECT_HEIGHT = 10;
@@ -68,6 +68,7 @@ struct Ball {
 
 // Local game variables
 static bool game_over = false;
+static bool first_attempt = true;
 static Player player = { 0 };
 static Ball ball = { 0 };
 static Rectangle top = { 0 };
@@ -79,8 +80,11 @@ int main() {
     // Initialization
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Pong");
     InitGame();
+    player.racket_size = MEDIUM_RACKET_HEIGHT;
+
     InitAudioDevice();
     SOUND_PADDLE_HIT = LoadSound("sounds/retro-pong-hit-sfx.wav");
+
     SetTargetFPS(FPS);
 
 
@@ -115,10 +119,10 @@ void InitGame(void) {
     wall.x = BORDER_OFFSET + WALL_OFFSET;
     wall.y = BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT;
     wall.width = TOP_BOTTOM_RECT_HEIGHT;
-    wall.height = SCREEN_HEIGHT - (2 * (BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT)); // off by 5 pixels
+    wall.height = SCREEN_HEIGHT - (2 * (BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT));
 
     // Initialize player
-    player.racket_size = LARGE_RACKET_HEIGHT;
+    // player.racket_size = LARGE_RACKET_HEIGHT;
     player.y_position = (SCREEN_HEIGHT / 2) - (player.racket_size / 2); // Initialize the racket to be at the center of the screen so any adjusted racket size works
     player.score = 0;
 
@@ -158,9 +162,10 @@ void UpdateGame(void) {
 
         // Ball launching logic
         if (!ball.active) {
-            if (IsKeyPressed(KEY_SPACE)) 
+            if (IsKeyPressed(KEY_SPACE) || !first_attempt) 
             {
                 ball.active = true;
+                first_attempt = false;
                 
                 // Set initial ball speed randomly
                 if (GetRandomValue(0, 1)) {
@@ -172,7 +177,7 @@ void UpdateGame(void) {
                 }
 
                 // Set initial ball speed to move at a 45 degree angle
-                float rescale_factor = BALL_SPEED / (sqrt(pow(ball.speed.x, 2) + pow(ball.speed.y, 2))); // scale so total speed is BALL_SPEED
+                float rescale_factor = BALL_SPEED / (sqrt(pow(ball.speed.x, 2) + pow(ball.speed.y, 2))); // Scale so total speed is BALL_SPEED
                 ball.speed.x *= rescale_factor;
                 ball.speed.y *= rescale_factor;
             }
@@ -223,12 +228,22 @@ void UpdateGame(void) {
                 SetSoundPitch(SOUND_PADDLE_HIT, 0.5f);
                 PlaySound(SOUND_PADDLE_HIT);
             }
-
         }
 
     } else {
-        if (IsKeyPressed(KEY_ENTER)) {
+        if (IsKeyPressed(KEY_S)) {
             InitGame();
+            player.racket_size = SMALL_RACKET_HEIGHT;
+            game_over = false;
+        }
+        else if (IsKeyPressed(KEY_M)) {
+            InitGame();
+            player.racket_size = MEDIUM_RACKET_HEIGHT;
+            game_over = false;
+        }
+        else if (IsKeyPressed(KEY_L)) {
+            InitGame();
+            player.racket_size = LARGE_RACKET_HEIGHT;
             game_over = false;
         }
     }
@@ -270,9 +285,13 @@ void DrawGame(void) {
         DrawText(tens_digit.c_str(), TENS_DIGIT_X_POSITION, TENS_DIGIT_Y_POSITION, FONT_SIZE, WHITE);
     }
 
+    if (first_attempt) {
+        DrawText("PRESS SPACE TO START", GetScreenWidth() / 2 - MeasureText("PRESS SPACE TO START", 20) / 2, GetScreenHeight() / 2 - 30, 20, GRAY);
+    }
+
     // Draw game over screen
     if (game_over) {
-        DrawText("PRESS [ENTER] TO PLAY AGAIN", GetScreenWidth() / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2, GetScreenHeight() / 2 - 30, 20, GRAY);
+        DrawText("PRESS S, M, or L TO PLAY AGAIN", GetScreenWidth() / 2 - MeasureText("PRESS S, M, or L TO PLAY AGAIN", 20) / 2, GetScreenHeight() / 2 - 30, 20, GRAY);
     }
 
     EndDrawing();
