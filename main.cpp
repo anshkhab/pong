@@ -136,17 +136,16 @@ void InitGame(void) {
 void UpdateGame(void) {
 
     if (!game_over) {
-        // Update position of the racket based on user input (up & down arrows)
         int bottom_racket_boundary = SCREEN_HEIGHT - BORDER_OFFSET - TOP_BOTTOM_RECT_HEIGHT - player.racket_size;
         int top_racket_boundary = BORDER_OFFSET + TOP_BOTTOM_RECT_HEIGHT;
 
+        // Update position of the racket based on user input (up & down arrows)
         if (IsKeyDown(KEY_DOWN)) {
             player.y_position += PIXEL_MOVEMENT_PER_CLICK;
         }
 
         if (player.y_position >= bottom_racket_boundary) {
-            // Paddle can't go below the lower wall
-            player.y_position = bottom_racket_boundary;
+            player.y_position = bottom_racket_boundary; // Paddle can't go below the lower wall
         }
 
         if (IsKeyDown(KEY_UP)) {
@@ -154,17 +153,16 @@ void UpdateGame(void) {
         }
 
         if (player.y_position <= top_racket_boundary) {
-            // Paddle can't go above the upper wall
-            player.y_position = top_racket_boundary;
+            player.y_position = top_racket_boundary; // Paddle can't go above the upper wall
         }
 
-        // ball launching logic
+        // Ball launching logic
         if (!ball.active) {
             if (IsKeyPressed(KEY_SPACE)) 
             {
                 ball.active = true;
                 
-                // set initial ball position & initial speed
+                // Set initial ball speed randomly
                 if (GetRandomValue(0, 1)) {
                     ball.speed.x = 1;
                     ball.speed.y = 1;
@@ -172,34 +170,34 @@ void UpdateGame(void) {
                     ball.speed.x = -1;
                     ball.speed.y = 1;
                 }
-                
-                // set initial ball speed to move at a 45 degree angle
+
+                // Set initial ball speed to move at a 45 degree angle
                 float rescale_factor = BALL_SPEED / (sqrt(pow(ball.speed.x, 2) + pow(ball.speed.y, 2))); // scale so total speed is BALL_SPEED
                 ball.speed.x *= rescale_factor;
                 ball.speed.y *= rescale_factor;
             }
         }
 
-        // ball movement logic
+        // Ball movement logic
         if (ball.active) {
             ball.position.x += ball.speed.x;
             ball.position.y += ball.speed.y;
 
-            // collision: ball vs. top or botttom
+            // Collision: ball vs. top or botttom
             if ((CheckCollisionCircleRec(ball.position, ball.radius, top) && ball.speed.y < 0) || (CheckCollisionCircleRec(ball.position, ball.radius, bottom) && ball.speed.y > 0)) {
                 ball.speed.y *= -1;
                 SetSoundPitch(SOUND_PADDLE_HIT, 1.0f);
                 PlaySound(SOUND_PADDLE_HIT);
             }
 
-            // collision: ball vs. wall
+            // Collision: ball vs. wall
             if (CheckCollisionCircleRec(ball.position, ball.radius, wall)) {
                 ball.speed.x *= -1;
                 SetSoundPitch(SOUND_PADDLE_HIT, 1.0f);
                 PlaySound(SOUND_PADDLE_HIT);
             }
 
-            // collision: ball hits the racket
+            // Collision: ball hits the racket
             Rectangle player_racket = {RACKET_X_POSITION, static_cast<float>(player.y_position), RACKET_WIDTH, static_cast<float>(player.racket_size)};
             if (CheckCollisionCircleRec(ball.position, ball.radius, player_racket) && ball.speed.x > 0) {
                 ball.speed.x *= -1;
@@ -209,7 +207,7 @@ void UpdateGame(void) {
                 ball.speed.x *= rescale_factor;
                 ball.speed.y *= rescale_factor;
 
-                player.score++; // update score
+                player.score++; // Update score
                 SetSoundPitch(SOUND_PADDLE_HIT, 1.5f);
                 PlaySound(SOUND_PADDLE_HIT);
 
@@ -218,7 +216,7 @@ void UpdateGame(void) {
                 }
             }
 
-            // miss: ball goes past paddle
+            // Miss: ball goes past paddle
             if ((ball.position.x - ball.radius) > SCREEN_WIDTH || (ball.position.y + ball.radius) < 0 || (ball.position.y - ball.radius) > SCREEN_HEIGHT) {
                 game_over = true;
 
@@ -239,30 +237,30 @@ void UpdateGame(void) {
 void DrawGame(void) {
     BeginDrawing();
 
-    // black background
+    // Black background
     ClearBackground(BLACK);
 
-    // draw top and bottom rectangles in white
+    // Draw top and bottom rectangles in white
     DrawRectangle(top.x, top.y, top.width, top.height, WHITE);
     DrawRectangle(bottom.x, bottom.y, bottom.width, bottom.height, WHITE);
 
-    // draw wall
+    // Draw wall
     DrawRectangle(wall.x, wall.y, wall.width, wall.height, WHITE);
 
-    // draw dashed line down the middle
+    // Draw dashed line down the middle
     for (int cur_y = DASHED_LINE_START_Y; cur_y <= DASHED_LINE_END_Y; cur_y += (DASHED_LINE_GAP + DASHED_LINE_HEIGHT)) {
         DrawRectangle(MIDDLE_X, DASHED_LINE_GAP + cur_y, DASHED_LINE_WIDTH, DASHED_LINE_HEIGHT, WHITE);
     }
 
-    // draw racket position
+    // Draw racket position
     DrawRectangle(RACKET_X_POSITION, player.y_position, RACKET_WIDTH, player.racket_size, WHITE);
 
-    // draw the ball position
+    // Draw the ball position
     if (ball.active) {
         DrawCircle(ball.position.x, ball.position.y, ball.radius, WHITE);
     }
 
-    // draw the score
+    // Draw the score
     string ones_digit = to_string(player.score % 10);
     string tens_digit = to_string(player.score / 10);
 
@@ -272,11 +270,10 @@ void DrawGame(void) {
         DrawText(tens_digit.c_str(), TENS_DIGIT_X_POSITION, TENS_DIGIT_Y_POSITION, FONT_SIZE, WHITE);
     }
 
+    // Draw game over screen
     if (game_over) {
         DrawText("PRESS [ENTER] TO PLAY AGAIN", GetScreenWidth() / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2, GetScreenHeight() / 2 - 30, 20, GRAY);
     }
 
     EndDrawing();
 }
-
-// add auto-formatting here...
