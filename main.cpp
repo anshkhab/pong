@@ -177,34 +177,41 @@ void UpdateGame(void) {
         if (ball.active) {
             ball.position.x += ball.speed.x;
             ball.position.y += ball.speed.y;
-        }
 
-        // collision: ball vs. top or botttom
-        if (CheckCollisionCircleRec(ball.position, ball.radius, top) || CheckCollisionCircleRec(ball.position, ball.radius, bottom)) {
-            ball.speed.y *= -1;
-            // TODO: add bounce noise
-        }
+            // collision: ball vs. top or botttom
+            if ((CheckCollisionCircleRec(ball.position, ball.radius, top) && ball.speed.y < 0) || (CheckCollisionCircleRec(ball.position, ball.radius, bottom) && ball.speed.y > 0)) {
+                ball.speed.y *= -1;
+                // TODO: add bounce noise
+            }
 
-        // collision: ball vs. wall
-        if (CheckCollisionCircleRec(ball.position, ball.radius, wall)) {
-            ball.speed.x *= -1;
-            // TODO: add bounce noise
-        }
+            // collision: ball vs. wall
+            if (CheckCollisionCircleRec(ball.position, ball.radius, wall)) {
+                ball.speed.x *= -1;
+                // TODO: add bounce noise
+            }
 
-        // collision: ball hits the racket
-        Rectangle player_racket = {RACKET_X_POSITION, static_cast<float>(player.y_position), RACKET_WIDTH, static_cast<float>(player.racket_size)};
-        if (CheckCollisionCircleRec(ball.position, ball.radius, player_racket)) {
-            ball.speed.x *= -1; // TODO: make this more complicated based on where on the racket it hits...
-            player.score++; // update score
+            // collision: ball hits the racket
+            Rectangle player_racket = {RACKET_X_POSITION, static_cast<float>(player.y_position), RACKET_WIDTH, static_cast<float>(player.racket_size)};
+            if (CheckCollisionCircleRec(ball.position, ball.radius, player_racket) && ball.speed.x > 0) {
+                ball.speed.x *= -1;
+                ball.speed.y = 6 * (((ball.position.y - player.y_position) / (player.racket_size / 2)) - 1);
 
-            if (player.score == 99) {
+                float rescale_factor = BALL_SPEED / (sqrt(pow(ball.speed.x, 2) + pow(ball.speed.y, 2))); // scale so total speed is BALL_SPEED
+                ball.speed.x *= rescale_factor;
+                ball.speed.y *= rescale_factor;
+
+                player.score++; // update score
+
+                if (player.score == 99) {
+                    game_over = true;
+                }
+            }
+
+            // miss: ball goes past paddle
+            if ((ball.position.x - ball.radius) > SCREEN_WIDTH || (ball.position.y + ball.radius) < 0 || (ball.position.y - ball.radius) > SCREEN_HEIGHT) {
                 game_over = true;
             }
-        }
 
-        // miss: ball goes past paddle
-        if ((ball.position.x - ball.radius) > SCREEN_WIDTH || (ball.position.y + ball.radius) < 0 || (ball.position.y - ball.radius) > SCREEN_HEIGHT) {
-            game_over = true;
         }
 
     } else {
@@ -263,9 +270,6 @@ void UpdateDrawFrame(void) {
     DrawGame();
 }
 
-// better ball bounce logic
-// we go to like 17 points if the ball hits the edge of the paddle
 // add the ability to change the size of the paddle...
 // add hit noise
-
 // add auto-formatting here...
