@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include <iostream>
 #include <string>
 #include <cmath>
 
@@ -8,7 +9,6 @@ using namespace std;
 static void InitGame(void);         // Initialize game
 static void UpdateGame(void);
 static void DrawGame(void);
-static void UpdateDrawFrame(void);  // Update game & draw
 
 // Global variables
 
@@ -73,20 +73,27 @@ static Ball ball = { 0 };
 static Rectangle top = { 0 };
 static Rectangle bottom = { 0 };
 static Rectangle wall = { 0 };
+static Sound SOUND_PADDLE_HIT = {};
 
 int main() {
     // Initialization
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Pong");
     InitGame();
+    InitAudioDevice();
+    SOUND_PADDLE_HIT = LoadSound("sounds/retro-pong-hit-sfx.wav");
     SetTargetFPS(FPS);
+
 
     // Main game loop
     while (!WindowShouldClose()) {
-        UpdateDrawFrame();
+        UpdateGame();
+        DrawGame();
     }
 
     // De-initialization
     CloseWindow();
+    UnloadSound(SOUND_PADDLE_HIT);
+    CloseAudioDevice();
 
     return 0;
 }
@@ -181,13 +188,15 @@ void UpdateGame(void) {
             // collision: ball vs. top or botttom
             if ((CheckCollisionCircleRec(ball.position, ball.radius, top) && ball.speed.y < 0) || (CheckCollisionCircleRec(ball.position, ball.radius, bottom) && ball.speed.y > 0)) {
                 ball.speed.y *= -1;
-                // TODO: add bounce noise
+                SetSoundPitch(SOUND_PADDLE_HIT, 1.0f);
+                PlaySound(SOUND_PADDLE_HIT);
             }
 
             // collision: ball vs. wall
             if (CheckCollisionCircleRec(ball.position, ball.radius, wall)) {
                 ball.speed.x *= -1;
-                // TODO: add bounce noise
+                SetSoundPitch(SOUND_PADDLE_HIT, 1.0f);
+                PlaySound(SOUND_PADDLE_HIT);
             }
 
             // collision: ball hits the racket
@@ -201,6 +210,8 @@ void UpdateGame(void) {
                 ball.speed.y *= rescale_factor;
 
                 player.score++; // update score
+                SetSoundPitch(SOUND_PADDLE_HIT, 1.5f);
+                PlaySound(SOUND_PADDLE_HIT);
 
                 if (player.score == 99) {
                     game_over = true;
@@ -210,6 +221,9 @@ void UpdateGame(void) {
             // miss: ball goes past paddle
             if ((ball.position.x - ball.radius) > SCREEN_WIDTH || (ball.position.y + ball.radius) < 0 || (ball.position.y - ball.radius) > SCREEN_HEIGHT) {
                 game_over = true;
+
+                SetSoundPitch(SOUND_PADDLE_HIT, 0.5f);
+                PlaySound(SOUND_PADDLE_HIT);
             }
 
         }
@@ -265,11 +279,4 @@ void DrawGame(void) {
     EndDrawing();
 }
 
-void UpdateDrawFrame(void) {
-    UpdateGame();
-    DrawGame();
-}
-
-// add the ability to change the size of the paddle...
-// add hit noise
 // add auto-formatting here...
