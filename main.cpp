@@ -21,12 +21,12 @@ static void UpdateDrawFrame(void);
 // Screen
 static const int SCREEN_WIDTH = 600;
 static const int SCREEN_HEIGHT = 450;
-static const int FPS = 80;
+static const int FPS = 50;
 static const int BORDER_OFFSET = 15;
 static const int TOP_BOTTOM_RECT_HEIGHT = 10;
 static const int WALL_OFFSET = 10;
 
-// Racket
+// Racket sizes
 static const int SMALL_RACKET_HEIGHT = 36;
 static const int MEDIUM_RACKET_HEIGHT = 72;
 static const int LARGE_RACKET_HEIGHT = 108;
@@ -249,9 +249,7 @@ void UpdateGame(void) {
 
                 float rescale_factor =
                     BALL_SPEED /
-                    (sqrt(pow(ball.speed.x, 2) +
-                          pow(ball.speed.y,
-                              2))); // scale so total speed is BALL_SPEED
+                    (sqrt(pow(ball.speed.x, 2) + pow(ball.speed.y, 2)));
                 ball.speed.x *= rescale_factor;
                 ball.speed.y *= rescale_factor;
 
