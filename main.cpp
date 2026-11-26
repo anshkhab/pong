@@ -56,7 +56,7 @@ static const int ONES_DIGIT_Y_POSITION = TENS_DIGIT_Y_POSITION;
 
 // Ball
 static const int BALL_RADIUS = 7;
-static const int BALL_SPEED = 10;
+static const int BALL_SPEED = 8;
 
 static const int BALL_START_POS_X1 = MIDDLE_X + 20;
 static const int BALL_START_POS_X2 = MIDDLE_X - 20;
